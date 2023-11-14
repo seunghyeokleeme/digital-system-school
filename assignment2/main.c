@@ -21,19 +21,23 @@ unsigned long lastInputTime = 0;
 ISR(TIMER0_OVF_vect)
 {
 	TCNT0 = 6;
-	if (++ms >= 1000)
-	{
-		ms = 0;
-		if (++sec >= 60)
+	ms++;
+	if (!mode)
+	{ // 일반 모드일 때만 초, 분, 시 업데이트
+		if (ms >= 1000)
 		{
-			sec = 0;
-			if (++min >= 60)
+			ms = 0;
+			if (++sec >= 60)
 			{
-				min = 0;
-				hour = (hour % 12) + 1;
-				if (hour == 12)
+				sec = 0;
+				if (++min >= 60)
 				{
-					isPM = !isPM;
+					min = 0;
+					hour = (hour % 12) + 1;
+					if (hour == 12)
+					{
+						isPM = !isPM;
+					}
 				}
 			}
 		}
@@ -62,46 +66,47 @@ void updateTime(int increment)
 			isPM = !isPM;
 		break;
 	}
+	displayTimeOnLCD();
 }
 
-// 스위치 입력 처리 함수
+// 스위치 입력 상태를 업데이트하고 필요한 액션을 수행합니다.
 void checkSwitches()
 {
-	char switchState = ~PINB & 0x0F; // 스위치 상태 읽기
+	// 현재 스위치 상태를 읽습니다.
+	char currentSwitchState = ~PINB & 0x0F;
 
-	if (ms - lastInputTime < 200)
-	{ // 200ms 동안 새 입력 무시 (디바운싱)
-		return;
-	}
-
-	// 스위치 상태가 변경되었는지 확인
-	if (switchState != lastSwitchState)
+	// 스위치 상태가 변경되었는지 확인하고, 변경되었을 때만 디바운싱 로직을 적용합니다.
+	if (currentSwitchState != lastSwitchState && ms - lastInputTime >= 200)
 	{
-		lastInputTime = ms;
+		lastInputTime = ms; // 마지막 입력 시간을 업데이트합니다.
 
-		if (switchState & (1 << 0))
-		{ // S5 - 모드 전환/종료
+		// 모드 전환을 검사합니다.
+		if (currentSwitchState & (1 << 0))
+		{ // S5 - 모드 전환
 			mode = !mode;
 			cursorPosition = 0; // 설정 모드 종료시 커서 초기화
+			if (!mode)
+			{ // 설정 모드를 빠져나오면 시간을 다시 표시합니다.
+				displayTimeOnLCD();
+			}
 		}
-
-		if (mode)
-		{
-			if (switchState & (1 << 1))
+		else if (mode)
+		{ // 설정 모드인 경우 커서 이동과 시간 조정을 처리합니다.
+			if (currentSwitchState & (1 << 1))
 			{ // S4 - 커서 이동
 				cursorPosition = (cursorPosition + 1) % 4;
 			}
-			if (switchState & (1 << 2))
-			{ // S3 - 증가
+			else if (currentSwitchState & (1 << 2))
+			{ // S3 - 시간 증가
 				updateTime(1);
 			}
-			if (switchState & (1 << 3))
-			{ // S2 - 감소
+			else if (currentSwitchState & (1 << 3))
+			{ // S2 - 시간 감소
 				updateTime(-1);
 			}
 		}
-
-		lastSwitchState = switchState; // 스위치 상태 업데이트
+		// 마지막 스위치 상태를 현재 상태로 업데이트합니다.
+		lastSwitchState = currentSwitchState;
 	}
 }
 
@@ -138,8 +143,11 @@ int main(void)
 
 	while (1)
 	{
-		checkSwitches();	// 스위치 입력 처리
-		displayTimeOnLCD(); // LCD에 시간 표시
-		displayMode();		// 설정 모드 표시
+		checkSwitches(); // 스위치 입력 처리
+		if (!mode)		 // 설정 모드가 아닐 때만 시간을 표시합니다.
+		{
+			displayTimeOnLCD(); // 실제 시간을 표시합니다.
+		}
+		displayMode(); // 설정 모드 표시
 	}
 }
