@@ -67,12 +67,12 @@ void updateTime(int increment)
 // 스위치 입력 처리 함수
 void checkSwitches()
 {
+	char switchState = ~PINB & 0x0F; // 스위치 상태 읽기
+
 	if (ms - lastInputTime < 200)
 	{ // 200ms 동안 새 입력 무시 (디바운싱)
 		return;
 	}
-
-	char switchState = ~PINB & 0x0F; // 스위치 상태 읽기
 
 	// 스위치 상태가 변경되었는지 확인
 	if (switchState != lastSwitchState)
