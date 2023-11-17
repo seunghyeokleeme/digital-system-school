@@ -112,7 +112,7 @@ void checkSwitches()
 
 void displayTimeOnLCD()
 {
-	char timeString[16];
+	char timeString[18];
 	sprintf(timeString, "%02d:%02d:%02d %s", hour, min, sec, isPM ? "PM" : "AM");
 	LCD_string(0xC2, timeString);
 }
